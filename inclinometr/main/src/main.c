@@ -1,12 +1,14 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include "esp_log.h"
+#include "ws_server.h"
 
 
 void app_main(void)
 {
-    while (true) {
-        printf("Hello2 from app_main!\n");
+	start_ws();
+    for(;;) {
         sleep(1);
     }
 }
