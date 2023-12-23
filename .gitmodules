@@ -1,3 +1,6 @@
 [submodule "inclinometr/components/websocket"]
 	path = inclinometr/components/websocket
 	url = https://github.com/Molorius/esp32-websocket.git
+[submodule "inclinometr/components/lvgl"]
+	path = inclinometr/components/lvgl
+	url = http://github.com/lvgl/lvgl.git

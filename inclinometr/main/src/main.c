@@ -3,12 +3,12 @@
 #include <unistd.h>
 #include "esp_log.h"
 #include "ws_server.h"
+//#include "ble_server.h"
 
 
-void app_main(void)
-{
+void app_main(void){
 	start_ws();
-    for(;;) {
-        sleep(1);
-    }
+	for(;;){
+		sleep(1);
+	}
 }

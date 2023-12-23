@@ -21,6 +21,18 @@
 static int client_queue_size = 10;
 static QueueHandle_t client_queue;
 
+typedef struct{
+	char* ssid;
+	char* passwd;
+}wifiLoginData_t;
+
+static void (*WSCallBack)(char* msg, uint64_t len) = NULL;
+
+void setWSRxCallBack(void *pCallBack)
+{
+	WSCallBack = pCallBack;
+}
+
 void websocket_callback(uint8_t num,WEBSOCKET_TYPE_t type,char* msg,uint64_t len){
 	const static char* TAG = "websocket_callback";
 	switch(type) {
@@ -37,22 +49,14 @@ void websocket_callback(uint8_t num,WEBSOCKET_TYPE_t type,char* msg,uint64_t len
 	      ESP_LOGI(TAG,"client %i was disconnected due to an error",num);
 	      break;
 	    case WEBSOCKET_TEXT:
-	      if(len) { // if the message length was greater than zero
-	    	  cJSON* json_data = cJSON_Parse(msg);
-	    	  if (json_data == NULL) {
-	    	          const char *error_ptr = cJSON_GetErrorPtr();
-	    	          if (error_ptr != NULL) {
-	    	              ESP_LOGW(TAG,"%s", error_ptr);
-	    	          }
-	    	          cJSON_Delete(json_data);
-	    	          break;
+			if(len){
+			  if (WSCallBack != NULL){
+				  WSCallBack(msg, len);
 			  }
-	    	  cJSON *name = cJSON_GetObjectItemCaseSensitive(json_data, "name");
-	    	  if (cJSON_IsString(name) && (name->valuestring != NULL)) {
-	    	          printf("Name: %s\n", name->valuestring);
+			  else{
+				  ESP_LOGI(TAG, "%s", msg);
 			  }
-	    	  cJSON_Delete(json_data);
-	      }
+		  }
 	      break;
 	    case WEBSOCKET_BIN:
 	      ESP_LOGI(TAG,"client %hu sent binary message of size %lu:\n%s",num,(uint32_t)len,msg);
@@ -128,10 +132,7 @@ static void server_handle_task(void* pvParameters) {
 
 static void count_task(void* pvParameters) {
   const static char* TAG = "count_task";
-  char out[20];
-  int len;
   int clients;
-  const static char* word = "%i";
   uint8_t n = 0;
   const int DELAY = 1000 / portTICK_PERIOD_MS; // 1 second
 
@@ -147,9 +148,103 @@ static void count_task(void* pvParameters) {
   }
 }
 
+void get_nvs_descriptor(nvs_handle_t* nvs_descriptor){
+	static esp_err_t err;
+	err = nvs_open("storage", NVS_READWRITE, nvs_descriptor);
+	if (err!= ESP_OK){
+		err = nvs_flash_init();
+		if(err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND)
+		{
+			ESP_ERROR_CHECK(nvs_flash_erase());
+			nvs_flash_init();
+		}
+		nvs_open("storage", NVS_READWRITE, nvs_descriptor);
+	}
+}
+wifi_mode_t check_mode(nvs_handle_t* nvs_descriptor){
+	const char* TAG = "CHECK MODE";
+	uint8_t mode;
+	static esp_err_t err;
+	err = nvs_get_u8(*nvs_descriptor, "wifi_mode", &mode);
+	switch(err){
+		case ESP_OK:
+			ESP_LOGI(TAG,"mode was found");
+			break;
+		case ESP_ERR_NVS_NOT_FOUND:
+			ESP_LOGI(TAG,"mode was not found");
+			mode = WIFI_MODE_AP;
+			nvs_set_u8(*nvs_descriptor, "wifi_mode", mode);
+			break;
+		default:
+			ESP_LOGW(TAG, "Error (%s) reading!\n", esp_err_to_name(err));
+	}
+//	if (err == ESP_ERR_NOT_FOUND){
+//		mode  = WIFI_MODE_AP;
+//		ESP_LOGI(TAG,"mode setup was not found");
+//	}
+	return (wifi_mode_t)mode;
+
+}
+wifiLoginData_t login_data;
+wifiLoginData_t* check_ssid_pass(nvs_handle_t* nvs_descriptor, wifi_mode_t mode){
+	const char* TAG = "check login data";
+	size_t nvs_required_size;
+	static esp_err_t err;
+	err = nvs_get_str(*nvs_descriptor, "ssid", NULL, &nvs_required_size);
+	switch (err)
+	{
+		case ESP_OK:
+			ESP_LOGI(TAG,"ssid was found");
+			login_data.ssid = malloc(nvs_required_size);
+			err = nvs_get_str(*nvs_descriptor, "ssid", login_data.ssid, &nvs_required_size );
+			break;
+		case ESP_ERR_NVS_NOT_FOUND:
+			ESP_LOGI(TAG, "ssid was not found");
+			login_data.ssid = (mode == WIFI_MODE_AP) ? CONFIG_AP_SSID : CONFIG_STA_SSID;
+			nvs_set_str(*nvs_descriptor, "ssid", login_data.ssid);
+			break;
+		default :
+			ESP_LOGW(TAG, "Error (%s) reading!\n", esp_err_to_name(err));
+	}
+	err = nvs_get_str(*nvs_descriptor, "passwd", NULL, &nvs_required_size);
+		switch (err)
+		{
+			case ESP_OK:
+				ESP_LOGI(TAG,"passwd was found");
+				login_data.passwd = malloc(nvs_required_size);
+				err = nvs_get_str(*nvs_descriptor, "passwd", login_data.passwd, &nvs_required_size );
+				break;
+			case ESP_ERR_NVS_NOT_FOUND:
+				ESP_LOGI(TAG, "passwd was not found");
+				login_data.passwd = (mode == WIFI_MODE_AP) ? CONFIG_AP_PASSWORD : CONFIG_STA_PASSWORD;
+				nvs_set_str(*nvs_descriptor, "passwd", login_data.passwd);
+				break;
+			default :
+				ESP_LOGW(TAG, "Error (%s) reading!\n", esp_err_to_name(err));
+		}
+	return &login_data;
+}
+
+void wifi_start(wifi_mode_t mode, char* ssid, char* passwd){
+	const char* TAG = "wifi start";
+	if(mode == WIFI_MODE_AP){
+		ESP_ERROR_CHECK(startWifiAccessPoint(ssid, passwd));
+		ESP_LOGI(TAG,"start AP mode");
+	}
+	if(mode == WIFI_MODE_STA){
+		ESP_ERROR_CHECK(startWifiStation(ssid, passwd));
+		ESP_LOGI(TAG,"start STA mode");
+	}
+	ESP_LOGI(TAG,"%d", (int)mode);
+}
+
 void start_ws(void){
+	nvs_handle_t nvs_descriptor;
 	ESP_ERROR_CHECK(initWifi());
-	ESP_ERROR_CHECK(startWifiAccessPoint(NULL, NULL));
+	get_nvs_descriptor(&nvs_descriptor);
+	wifi_mode_t mode = check_mode(&nvs_descriptor);
+	wifiLoginData_t* login_data = check_ssid_pass(&nvs_descriptor, mode);
+	wifi_start(mode, login_data->ssid, login_data->passwd);
 	ws_server_start();
 	xTaskCreate(&server_task,"server_task",3000,NULL,9,NULL);
 	xTaskCreate(&server_handle_task,"server_handle_task",4000,NULL,6,NULL);
