@@ -5,6 +5,8 @@
 #include "lwip/api.h"
 #include "lwip/err.h"
 #include "lwip/sys.h"
+#include "mdns.h"
+#include "lwip/dns.h"
 
 #include "esp_wifi.h"
 #include "esp_log.h"
@@ -238,6 +240,16 @@ void wifi_start(wifi_mode_t mode, char* ssid, char* passwd){
 	ESP_LOGI(TAG,"%d", (int)mode);
 }
 
+
+static void init_mdns(void){
+	const char* TAG = "mdns config";
+	//initialize mDNS
+	ESP_ERROR_CHECK(mdns_init());
+	//set mDNS hostname (required if you want to advertise services)
+	ESP_ERROR_CHECK( mdns_hostname_set("esp32inclinometr") );
+	ESP_LOGI(TAG, "mdns hostname set to: [%s]", "esp32inclinometr");
+}
+
 void start_ws(void){
 	nvs_handle_t nvs_descriptor;
 	ESP_ERROR_CHECK(initWifi());
@@ -245,6 +257,7 @@ void start_ws(void){
 	wifi_mode_t mode = check_mode(&nvs_descriptor);
 	wifiLoginData_t* login_data = check_ssid_pass(&nvs_descriptor, mode);
 	wifi_start(mode, login_data->ssid, login_data->passwd);
+	init_mdns();
 	ws_server_start();
 	xTaskCreate(&server_task,"server_task",3000,NULL,9,NULL);
 	xTaskCreate(&server_handle_task,"server_handle_task",4000,NULL,6,NULL);
