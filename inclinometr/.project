@@ -24,6 +24,11 @@
 			<location>C:/Users/Valera/git/repository/inclinometr/components</location>
 		</link>
 		<link>
+			<name>components/lvgl</name>
+			<type>2</type>
+			<location>C:/Users/Valera/git/repository/inclinometr/components/lvgl</location>
+		</link>
+		<link>
 			<name>build/ide/esp_idf_components/app_trace/app_trace.c</name>
 			<type>1</type>
 			<location>C:/Espressif/frameworks/esp-idf-v5.1.2/components/app_trace/app_trace.c</location>

@@ -2,7 +2,7 @@
 # for more information about component CMakeLists.txt files.
 
 idf_component_register(
-    SRCS "src/main.c" "src/ws_server.c"      # list the source files of this component
+    SRCS "src/main.c" "src/ws_server.c" "src/display.c" "src/display_ui.c" "src/display_helper.c"     # list the source files of this component
     INCLUDE_DIRS include    # optional, add here public include directories
     PRIV_INCLUDE_DIRS   # optional, add here private include directories
     REQUIRES            # optional, list the public requirements (component names)
