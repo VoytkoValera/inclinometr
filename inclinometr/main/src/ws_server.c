@@ -1,3 +1,5 @@
+#include "../include/ws_server.h"
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -15,10 +17,13 @@
 
 #include "websocket_server.h"
 
-#include "ws_server.h"
 #include "wifiStack.h"
 
 #include <cJSON.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 static int client_queue_size = 10;
 static QueueHandle_t client_queue;
@@ -151,7 +156,7 @@ static void count_task(void* pvParameters) {
 }
 
 void get_nvs_descriptor(nvs_handle_t* nvs_descriptor){
-	static esp_err_t err;
+	static  err;
 	err = nvs_open("storage", NVS_READWRITE, nvs_descriptor);
 	if (err!= ESP_OK){
 		err = nvs_flash_init();
@@ -264,3 +269,6 @@ void start_ws(void){
 	xTaskCreate(&count_task,"count_task",6000,NULL,2,NULL);
 }
 
+#ifdef __cplusplus
+}
+#endif

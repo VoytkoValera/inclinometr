@@ -1,10 +1,14 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <ws_server.h>
+
 #include "esp_log.h"
-#include "ws_server.h"
 #include "display.h"
 #include "display_ui.h"
+
+
+extern "C" { void app_main(void); }
 
 void app_main(void){
 	start_ws();
