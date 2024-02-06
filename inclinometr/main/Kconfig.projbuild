@@ -1,1 +1,29 @@
 # put here your custom config value
+
+menu "IIC config"
+
+config IIC_SDA_PIN
+    int "i2c sda pin number"
+    default 0
+
+config IIC_SCL_PIN
+    int "i2c scl pin number"
+    default 0 
+
+choice IIC_SPEED_CHOICE
+    prompt "Test choice"
+    default IIC_SPEED_100_KHZ
+    
+	config IIC_SPEED_100_KHZ
+		bool "100 kHz"
+		
+	config IIC_SPEED_400_KHZ
+		bool "400 kHz"	
+endchoice
+
+config IIC_CLK_SPEED
+	int
+	default 100000 if IIC_SPEED_100_KHZ
+	default 400000 if IIC_SPEED_400_KHZ
+	
+endmenu
